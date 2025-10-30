@@ -1,397 +1,981 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { CheckCircle, Circle, Clock, AlertCircle, BookOpen, Scale, Shield, Award } from 'lucide-react';
-
-const LegalLearningPlatform = () => {
-  const [activeSection, setActiveSection] = useState(null);
-  const [completedSections, setCompletedSections] = useState(new Set());
-  const [timeSpent, setTimeSpent] = useState(0);
-  const [isActive, setIsActive] = useState(true);
-  const [formData, setFormData] = useState({
-    lastName: '',
-    firstName: '',
-    reflection: ''
-  });
-  const [checkpointAnswers, setCheckpointAnswers] = useState({});
-  const [showCheckpointFeedback, setShowCheckpointFeedback] = useState({});
-  
-  const REQUIRED_TIME = 600; // 10 minutes in seconds
-  const contentRef = useRef(null);
-  const lastActivityRef = useRef(Date.now());
-
-  // Track user activity
-  useEffect(() => {
-    const handleActivity = () => {
-      lastActivityRef.current = Date.now();
-      setIsActive(true);
-    };
-
-    const events = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart'];
-    events.forEach(event => window.addEventListener(event, handleActivity));
-
-    return () => {
-      events.forEach(event => window.removeEventListener(event, handleActivity));
-    };
-  }, []);
-
-  // Timer with activity tracking
-  useEffect(() => {
-    const timer = setInterval(() => {
-      const timeSinceActivity = Date.now() - lastActivityRef.current;
-      if (timeSinceActivity < 3000) {
-        setTimeSpent(prev => prev + 1);
-      } else {
-        setIsActive(false);
-      }
-    }, 1000);
-
-    return () => clearInterval(timer);
-  }, []);
-
-  const formatTime = (seconds) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
-  };
-
-  const countSentences = (text) => {
-    const sentences = text.match(/[^.!?]+[.!?]+/g) || [];
-    return sentences.filter(s => s.trim().length > 10).length;
-  };
-
-  const calculateTotalScore = () => {
-    let total = 0;
-    sections.forEach((section) => {
-      section.checkpoints.forEach((checkpoint, checkpointIndex) => {
-        const key = `${section.id}-${checkpointIndex}`;
-        if (checkpointAnswers[key] !== undefined && checkpointAnswers[key] === checkpoint.correctAnswer) {
-          total += checkpoint.points;
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Legal Awareness & Cyber Protection</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
         }
-      });
-    });
-    return total;
-  };
 
-  const handleSectionClick = (index) => {
-    setActiveSection(activeSection === index ? null : index);
-    setCompletedSections(prev => new Set([...prev, index]));
-  };
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #e0f2fe 0%, #ddd6fe 100%);
+            min-height: 100vh;
+        }
 
-  const handleCheckpointAnswer = (sectionId, checkpointIndex, answerIndex) => {
-    const key = `${sectionId}-${checkpointIndex}`;
-    setCheckpointAnswers({...checkpointAnswers, [key]: answerIndex});
-    setShowCheckpointFeedback({...showCheckpointFeedback, [key]: true});
-  };
+        .header {
+            background: white;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
 
-  const sections = [
-    {
-      id: 'legal-awareness',
-      title: "Legal Awareness",
-      icon: <Scale className="w-6 h-6" />,
-      content: `The legal system on information systems and technology develops daily as technology grows. These developments can have meaningful effects on organizations such as the following:
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 24px;
+        }
+
+        h1 {
+            font-size: 2rem;
+            color: #1f2937;
+            margin-bottom: 24px;
+        }
+
+        .name-section {
+            background: linear-gradient(135deg, #eef2ff 0%, #dbeafe 100%);
+            border: 2px solid #818cf8;
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 24px;
+        }
+
+        .name-inputs {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 16px;
+            margin-bottom: 16px;
+        }
+
+        .input-group label {
+            display: block;
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: #374151;
+            margin-bottom: 8px;
+        }
+
+        .input-group input {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #818cf8;
+            border-radius: 8px;
+            font-size: 1.125rem;
+            font-weight: 600;
+        }
+
+        .input-group input:focus {
+            outline: none;
+            border-color: #4f46e5;
+            box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+        }
+
+        .name-display {
+            background: white;
+            border: 2px solid #818cf8;
+            border-radius: 8px;
+            padding: 16px;
+            display: none;
+        }
+
+        .name-display.show {
+            display: block;
+        }
+
+        .name-display h2 {
+            font-size: 1.5rem;
+            color: #312e81;
+            margin-bottom: 4px;
+        }
+
+        .name-display p {
+            font-size: 0.875rem;
+            color: #6b7280;
+        }
+
+        .progress-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 16px;
+        }
+
+        .progress-card {
+            border-radius: 12px;
+            padding: 16px;
+        }
+
+        .progress-card.time {
+            background: #dbeafe;
+        }
+
+        .progress-card.sections {
+            background: #dcfce7;
+        }
+
+        .progress-card.score {
+            background: #fef3c7;
+        }
+
+        .progress-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .progress-label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-weight: 600;
+            color: #374151;
+        }
+
+        .progress-value {
+            font-size: 1.125rem;
+            font-weight: bold;
+        }
+
+        .progress-value.time { color: #2563eb; }
+        .progress-value.sections { color: #16a34a; }
+        .progress-value.score { color: #d97706; }
+
+        .progress-bar-container {
+            width: 100%;
+            height: 12px;
+            background: #d1d5db;
+            border-radius: 6px;
+            overflow: hidden;
+        }
+
+        .progress-bar {
+            height: 100%;
+            transition: width 0.3s ease;
+            border-radius: 6px;
+        }
+
+        .progress-bar.time { background: #2563eb; }
+        .progress-bar.sections { background: #16a34a; }
+        .progress-bar.score { background: #d97706; }
+
+        .paused-text {
+            font-size: 0.75rem;
+            color: #6b7280;
+            margin-top: 4px;
+        }
+
+        .main-content {
+            padding: 32px 24px;
+        }
+
+        .section-card {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 16px;
+            overflow: hidden;
+        }
+
+        .section-header {
+            width: 100%;
+            padding: 16px 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border: none;
+            background: white;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .section-header:hover {
+            background: #f9fafb;
+        }
+
+        .section-left {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .section-title {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .section-title h3 {
+            font-size: 1.25rem;
+            color: #1f2937;
+        }
+
+        .section-right {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .points-badge {
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: #d97706;
+            background: #fef3c7;
+            padding: 6px 12px;
+            border-radius: 16px;
+        }
+
+        .section-content {
+            display: none;
+            padding: 0 24px 24px 24px;
+        }
+
+        .section-content.active {
+            display: block;
+        }
+
+        .content-text {
+            line-height: 1.75;
+            color: #374151;
+            margin-bottom: 24px;
+            white-space: pre-line;
+        }
+
+        .case-card {
+            background: #fffbeb;
+            border-left: 4px solid #f59e0b;
+            border-radius: 8px;
+            padding: 24px;
+            margin-bottom: 24px;
+        }
+
+        .case-card h4 {
+            font-size: 1.125rem;
+            color: #78350f;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .case-card p {
+            color: #1f2937;
+            margin-bottom: 8px;
+        }
+
+        .checkpoint-card {
+            background: #faf5ff;
+            border: 2px solid #d8b4fe;
+            border-radius: 8px;
+            padding: 24px;
+            margin-bottom: 16px;
+        }
+
+        .checkpoint-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .checkpoint-title {
+            font-size: 1.125rem;
+            font-weight: bold;
+            color: #581c87;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .checkpoint-points {
+            background: #7c3aed;
+            color: white;
+            padding: 6px 12px;
+            border-radius: 16px;
+            font-size: 0.875rem;
+            font-weight: bold;
+        }
+
+        .checkpoint-question {
+            color: #1f2937;
+            font-weight: 500;
+            margin-bottom: 16px;
+        }
+
+        .option-btn {
+            width: 100%;
+            text-align: left;
+            padding: 12px 16px;
+            margin-bottom: 8px;
+            border: 2px solid #d1d5db;
+            border-radius: 8px;
+            background: white;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .option-btn:hover:not(:disabled) {
+            background: #f3e8ff;
+        }
+
+        .option-btn.correct {
+            background: #10b981;
+            color: white;
+            border-color: #059669;
+        }
+
+        .option-btn.incorrect {
+            background: #ef4444;
+            color: white;
+            border-color: #dc2626;
+        }
+
+        .option-btn.highlight-correct {
+            background: #d1fae5;
+            color: #065f46;
+            border-color: #6ee7b7;
+        }
+
+        .option-btn:disabled {
+            cursor: not-allowed;
+        }
+
+        .feedback {
+            margin-top: 16px;
+            padding: 12px;
+            border-radius: 8px;
+        }
+
+        .feedback.correct {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .feedback.incorrect {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .reflection-section {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            padding: 32px;
+            margin-top: 32px;
+        }
+
+        .reflection-title {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #1f2937;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .instruction-box {
+            background: #eef2ff;
+            border-left: 4px solid #6366f1;
+            border-radius: 8px;
+            padding: 24px;
+            margin-bottom: 24px;
+        }
+
+        .instruction-box p {
+            color: #1f2937;
+            line-height: 1.6;
+        }
+
+        .instruction-box strong {
+            font-weight: 600;
+            margin-bottom: 8px;
+            display: block;
+        }
+
+        .textarea-group label {
+            display: block;
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: #374151;
+            margin-bottom: 8px;
+        }
+
+        .textarea-group textarea {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #d1d5db;
+            border-radius: 8px;
+            font-family: inherit;
+            font-size: 1rem;
+            resize: vertical;
+        }
+
+        .textarea-group textarea:focus {
+            outline: none;
+            border-color: #6366f1;
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+        }
+
+        .sentence-counter {
+            font-size: 0.875rem;
+            color: #6b7280;
+            margin-top: 12px;
+        }
+
+        .sentence-count {
+            font-weight: bold;
+            font-size: 1.125rem;
+        }
+
+        .sentence-count.complete { color: #16a34a; }
+        .sentence-count.incomplete { color: #dc2626; }
+
+        .screenshot-box {
+            background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+            border: 2px solid #10b981;
+            border-radius: 12px;
+            padding: 24px;
+            margin-top: 32px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .checklist {
+            margin-top: 24px;
+        }
+
+        .checklist h3 {
+            font-weight: 600;
+            color: #1f2937;
+            margin-bottom: 12px;
+        }
+
+        .checklist-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 12px;
+        }
+
+        .checklist-item.complete {
+            background: #d1fae5;
+        }
+
+        .checklist-item.incomplete {
+            background: #f3f4f6;
+        }
+
+        .checklist-item span {
+            color: #374151;
+        }
+
+        .checklist-item.complete span {
+            color: #065f46;
+            font-weight: 500;
+        }
+
+        .completion-banner {
+            background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+            border: 2px solid #fbbf24;
+            border-radius: 12px;
+            padding: 24px;
+            margin-top: 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .icon {
+            width: 24px;
+            height: 24px;
+            display: inline-block;
+        }
+
+        .icon-sm {
+            width: 20px;
+            height: 20px;
+        }
+
+        .icon-lg {
+            width: 64px;
+            height: 64px;
+        }
+
+        @media (max-width: 768px) {
+            h1 {
+                font-size: 1.5rem;
+            }
+
+            .progress-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .section-header {
+                padding: 12px 16px;
+            }
+
+            .section-right {
+                flex-direction: column;
+                align-items: flex-end;
+                gap: 8px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="container">
+            <h1>Legal Awareness & Cyber Protection</h1>
+            
+            <!-- Name Section -->
+            <div class="name-section">
+                <div class="name-inputs">
+                    <div class="input-group">
+                        <label for="lastName">Last Name</label>
+                        <input type="text" id="lastName" placeholder="Enter your last name">
+                    </div>
+                    <div class="input-group">
+                        <label for="firstName">First Name</label>
+                        <input type="text" id="firstName" placeholder="Enter your first name">
+                    </div>
+                </div>
+                
+                <div class="name-display" id="nameDisplay">
+                    <h2 id="fullName"></h2>
+                    <p id="dateDisplay"></p>
+                </div>
+            </div>
+
+            <!-- Progress Indicators -->
+            <div class="progress-grid">
+                <div class="progress-card time">
+                    <div class="progress-header">
+                        <div class="progress-label">
+                            <span class="icon">⏱️</span>
+                            <span>Active Time</span>
+                        </div>
+                        <span class="progress-value time" id="timeValue">0:00 / 10:00</span>
+                    </div>
+                    <div class="progress-bar-container">
+                        <div class="progress-bar time" id="timeBar" style="width: 0%"></div>
+                    </div>
+                    <p class="paused-text" id="pausedText" style="display: none;">⚠️ Paused</p>
+                </div>
+
+                <div class="progress-card sections">
+                    <div class="progress-header">
+                        <div class="progress-label">
+                            <span class="icon">📚</span>
+                            <span>Sections</span>
+                        </div>
+                        <span class="progress-value sections" id="sectionsValue">0 / 8</span>
+                    </div>
+                    <div class="progress-bar-container">
+                        <div class="progress-bar sections" id="sectionsBar" style="width: 0%"></div>
+                    </div>
+                </div>
+
+                <div class="progress-card score">
+                    <div class="progress-header">
+                        <div class="progress-label">
+                            <span class="icon">🏆</span>
+                            <span>Score</span>
+                        </div>
+                        <span class="progress-value score" id="scoreValue">0 / 60</span>
+                    </div>
+                    <div class="progress-bar-container">
+                        <div class="progress-bar score" id="scoreBar" style="width: 0%"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="main-content">
+        <div class="container">
+            <!-- Sections will be dynamically generated here -->
+            <div id="sectionsContainer"></div>
+
+            <!-- Reflection Section -->
+            <div class="reflection-section">
+                <h2 class="reflection-title">
+                    <span class="icon">📝</span>
+                    Final Reflection Essay
+                </h2>
+
+                <div class="instruction-box">
+                    <p><strong>Instructions:</strong></p>
+                    <p>
+                        In at least 10 sentences, explain how the principles from the discussed cases apply to the main topics. 
+                        Provide your personal interpretation while keeping legal accuracy. This reflection demonstrates your 
+                        understanding of the material covered in this training.
+                    </p>
+                </div>
+
+                <div class="textarea-group">
+                    <label for="reflection">Your Reflection (Minimum 10 sentences) *</label>
+                    <textarea id="reflection" rows="15" placeholder="Write your reflection here..."></textarea>
+                    <div class="sentence-counter">
+                        Sentences: <span class="sentence-count incomplete" id="sentenceCount">0 / 10</span>
+                        <span id="sentenceStatus"></span>
+                    </div>
+                </div>
+
+                <div class="screenshot-box">
+                    <span class="icon-lg">✅</span>
+                    <div>
+                        <h3 style="margin-bottom: 8px; font-size: 1.125rem;">Ready to Screenshot!</h3>
+                        <p style="color: #374151;">
+                            Once you've completed all requirements, take a screenshot of the top of this page showing your name, 
+                            sections completed, time spent, and total score. No submission button needed - just capture your results!
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Completion Checklist -->
+                <div class="checklist">
+                    <h3>Completion Checklist:</h3>
+                    <div id="checklistContainer"></div>
+                </div>
+
+                <div class="completion-banner" id="completionBanner" style="display: none;">
+                    <div>
+                        <p style="font-size: 1.5rem; font-weight: bold; color: #78350f; margin-bottom: 4px;">
+                            🎉 All Requirements Complete!
+                        </p>
+                        <p style="color: #374151;">
+                            Scroll to the top and take a screenshot showing your name, progress, and score.
+                        </p>
+                    </div>
+                    <span class="icon-lg">🏆</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Data
+        const sections = [
+            {
+                id: 'legal-awareness',
+                title: 'Legal Awareness',
+                icon: '⚖️',
+                content: `The legal system on information systems and technology develops daily as technology grows. These developments can have meaningful effects on organizations such as the following:
 
 • Security Expectation: Clients and partners expect extensive security to protect their data.
 • Organization Expectation: They expect organizations to adhere to lawful paths in achieving commercial goals.
 • Damages: If organizations miss a new legal ruling, it could hurt the organization, its brand, and everyone involved.`,
-      checkpoints: [
-        {
-          question: "Why is staying updated with legal developments crucial for organizations?",
-          options: [
-            "Only for compliance purposes",
-            "To protect data, reputation, and stakeholders from potential damages",
-            "It's optional for most companies",
-            "Just for large corporations"
-          ],
-          correctAnswer: 1,
-          points: 3
-        },
-        {
-          question: "What are the three main expectations mentioned that affect organizations?",
-          options: [
-            "Profit, growth, and innovation",
-            "Security expectation, organization expectation, and damages",
-            "Hiring, training, and retention",
-            "Marketing, sales, and customer service"
-          ],
-          correctAnswer: 1,
-          points: 2
-        }
-      ],
-      case: {
-        title: "Facebook-Cambridge Analytica Data Breach",
-        cause: "Facebook was criticized for leaking users' data to consulting firm Cambridge Analytica during the 2016 Presidential Election",
-        verdict: "This cybersecurity failure adversely affected businesses, the economy, and the country, leading to personal information breach and potential legal repercussions"
-      }
-    },
-    {
-      id: 'net-neutrality',
-      title: "Net Neutrality",
-      icon: <BookOpen className="w-6 h-6" />,
-      content: `It is the notion that equally treats all content flowing through the cables and towers of internet service providers (ISP). It requires ISPs to not slide additional data into "fast lanes" that block or discriminate against the contents of other ISP.
+                checkpoints: [
+                    {
+                        question: "Why is staying updated with legal developments crucial for organizations?",
+                        options: [
+                            "Only for compliance purposes",
+                            "To protect data, reputation, and stakeholders from potential damages",
+                            "It's optional for most companies",
+                            "Just for large corporations"
+                        ],
+                        correctAnswer: 1,
+                        points: 3
+                    },
+                    {
+                        question: "What are the three main expectations mentioned that affect organizations?",
+                        options: [
+                            "Profit, growth, and innovation",
+                            "Security expectation, organization expectation, and damages",
+                            "Hiring, training, and retention",
+                            "Marketing, sales, and customer service"
+                        ],
+                        correctAnswer: 1,
+                        points: 2
+                    }
+                ],
+                case: {
+                    title: "Facebook-Cambridge Analytica Data Breach",
+                    cause: "Facebook was criticized for leaking users' data to consulting firm Cambridge Analytica during the 2016 Presidential Election",
+                    verdict: "This cybersecurity failure adversely affected businesses, the economy, and the country, leading to personal information breach and potential legal repercussions"
+                }
+            },
+            {
+                id: 'net-neutrality',
+                title: 'Net Neutrality',
+                icon: '📡',
+                content: `It is the notion that equally treats all content flowing through the cables and towers of internet service providers (ISP). It requires ISPs to not slide additional data into "fast lanes" that block or discriminate against the contents of other ISP.
 
 No law, rule, or regulation in the Philippines limits or promotes net neutrality. With this, ISPs can purposely increase or decrease the bandwidth allocation depending on their customers' pricing. It affects any small- or medium-sized company that relies on the internet.
 
 For example, telecommunications companies like Smart and Globe provide add-on packages for their users in their services, such as free YouTube access and free Facebook data. Although it does appear a good deal for users, in hindsight, these companies forcefully influence their users to use services from other companies agreed upon over others.`,
-      checkpoints: [
-        {
-          question: "What is the main concern with ISPs creating 'fast lanes' for certain content?",
-          options: [
-            "It increases internet speed for everyone",
-            "It discriminates against content and violates equal access principles",
-            "It reduces ISP operational costs",
-            "It improves network security"
-          ],
-          correctAnswer: 1,
-          points: 3
-        },
-        {
-          question: "What is the current status of net neutrality regulation in the Philippines?",
-          options: [
-            "Strictly regulated by law",
-            "No law, rule, or regulation limits or promotes it",
-            "Banned completely",
-            "Only applies to large ISPs"
-          ],
-          correctAnswer: 1,
-          points: 2
-        },
-        {
-          question: "How do add-on packages from telecoms like Smart and Globe affect users?",
-          options: [
-            "They provide unlimited benefits",
-            "They have no significant impact",
-            "They forcefully influence users to use services from agreed-upon companies",
-            "They improve overall internet quality"
-          ],
-          correctAnswer: 2,
-          points: 3
-        }
-      ],
-      case: {
-        title: "ISPs vs. California's Net Neutrality Law",
-        cause: "Internet Service Providers challenged California's strict net neutrality regulations that prevented paid prioritization and throttling",
-        verdict: "The case highlighted the ongoing debate between business interests and equal internet access rights"
-      }
-    },
-    {
-      id: 'data-protection',
-      title: "Data Protection",
-      icon: <Shield className="w-6 h-6" />,
-      content: `Most of the public wants their online data and information to be private and secure. Working with the personal information of partners, clients or stakeholders requires covering the bases and confirming the structural soundness of the network, prevention of cybersecurity breaches, and transparency with them.
+                checkpoints: [
+                    {
+                        question: "What is the main concern with ISPs creating 'fast lanes' for certain content?",
+                        options: [
+                            "It increases internet speed for everyone",
+                            "It discriminates against content and violates equal access principles",
+                            "It reduces ISP operational costs",
+                            "It improves network security"
+                        ],
+                        correctAnswer: 1,
+                        points: 3
+                    },
+                    {
+                        question: "What is the current status of net neutrality regulation in the Philippines?",
+                        options: [
+                            "Strictly regulated by law",
+                            "No law, rule, or regulation limits or promotes it",
+                            "Banned completely",
+                            "Only applies to large ISPs"
+                        ],
+                        correctAnswer: 1,
+                        points: 2
+                    },
+                    {
+                        question: "How do add-on packages from telecoms like Smart and Globe affect users?",
+                        options: [
+                            "They provide unlimited benefits",
+                            "They have no significant impact",
+                            "They forcefully influence users to use services from agreed-upon companies",
+                            "They improve overall internet quality"
+                        ],
+                        correctAnswer: 2,
+                        points: 3
+                    }
+                ],
+                case: {
+                    title: "ISPs vs. California's Net Neutrality Law",
+                    cause: "Internet Service Providers challenged California's strict net neutrality regulations that prevented paid prioritization and throttling",
+                    verdict: "The case highlighted the ongoing debate between business interests and equal internet access rights"
+                }
+            },
+            {
+                id: 'data-protection',
+                title: 'Data Protection',
+                icon: '🔒',
+                content: `Most of the public wants their online data and information to be private and secure. Working with the personal information of partners, clients or stakeholders requires covering the bases and confirming the structural soundness of the network, prevention of cybersecurity breaches, and transparency with them.
 
 For instance, in the United States, Facebook was criticized for leaking users' data to consulting firm Cambridge Analytica during the 2016 Presidential Election. It poses a personal information breach and other potential legal repercussions. This cybersecurity failure adversely affects businesses, the economy, and the country.
 
 It is encouraged to be truthful and transparent in handling personal data by giving precise and timely reports and updates.`,
-      checkpoints: [
-        {
-          question: "What is the primary obligation when handling personal data according to the material?",
-          options: [
-            "Store it on multiple servers",
-            "Truthfulness, transparency, and providing precise and timely reports",
-            "Encrypt all data files",
-            "Limit access to executives only"
-          ],
-          correctAnswer: 1,
-          points: 3
-        },
-        {
-          question: "What are the key requirements when working with personal information?",
-          options: [
-            "Speed and efficiency only",
-            "Covering bases, confirming network soundness, preventing breaches, and transparency",
-            "Cost reduction and profit maximization",
-            "Marketing and sales optimization"
-          ],
-          correctAnswer: 1,
-          points: 2
-        }
-      ]
-    },
-    {
-      id: 'ip-theft',
-      title: "IP Theft",
-      icon: <Shield className="w-6 h-6" />,
-      content: `Intellectual property (IP) theft is stealing data from a company. IP involves ideas, design, artistic works, images, videos, symbols, and names that are assets to a company.
+                checkpoints: [
+                    {
+                        question: "What is the primary obligation when handling personal data according to the material?",
+                        options: [
+                            "Store it on multiple servers",
+                            "Truthfulness, transparency, and providing precise and timely reports",
+                            "Encrypt all data files",
+                            "Limit access to executives only"
+                        ],
+                        correctAnswer: 1,
+                        points: 3
+                    },
+                    {
+                        question: "What are the key requirements when working with personal information?",
+                        options: [
+                            "Speed and efficiency only",
+                            "Covering bases, confirming network soundness, preventing breaches, and transparency",
+                            "Cost reduction and profit maximization",
+                            "Marketing and sales optimization"
+                        ],
+                        correctAnswer: 1,
+                        points: 2
+                    }
+                ]
+            },
+            {
+                id: 'ip-theft',
+                title: 'IP Theft',
+                icon: '🛡️',
+                content: `Intellectual property (IP) theft is stealing data from a company. IP involves ideas, design, artistic works, images, videos, symbols, and names that are assets to a company.
 
 IP theft covers patent trolling, trademark infringement, software pirating, and counterfeit production that is widespread across the internet.
 
 Specifically, patent trolling deals when a massive company purchases internet security technology for Apple's FaceTime features. Apple is ordered to pay a settlement of more than $500 million.
 
 To prevent facing and becoming a victim of IP theft, establish stricter security policies and procedures to protect valuable data. This includes educating the employees, monitoring their activity, and finding the company's cybersecurity lapses and weak spots.`,
-      checkpoints: [
-        {
-          question: "What are the recommended measures to prevent IP theft?",
-          options: [
-            "Only use legal agreements",
-            "Focus solely on technical security measures",
-            "Employee education, activity monitoring, and finding cybersecurity lapses",
-            "Rely on antivirus software alone"
-          ],
-          correctAnswer: 2,
-          points: 3
-        },
-        {
-          question: "What does intellectual property (IP) include?",
-          options: [
-            "Only physical products",
-            "Ideas, design, artistic works, images, videos, symbols, and names",
-            "Just software code",
-            "Only patents and trademarks"
-          ],
-          correctAnswer: 1,
-          points: 2
-        },
-        {
-          question: "What forms of IP theft are mentioned in the material?",
-          options: [
-            "Only software pirating",
-            "Patent trolling, trademark infringement, software pirating, and counterfeit production",
-            "Just copyright violations",
-            "Only physical theft"
-          ],
-          correctAnswer: 1,
-          points: 3
-        }
-      ],
-      case: {
-        title: "Oracle America, Inc. vs. Google LLC",
-        cause: "Copyright infringement case involving software code and intellectual property rights",
-        verdict: "Highlighted the complexities of IP protection in the technology sector and the significant financial stakes involved"
-      }
-    },
-    {
-      id: 'non-compete',
-      title: "Non-Compete Laws",
-      icon: <Scale className="w-6 h-6" />,
-      content: `With frequent transitions and resignations, non-compete clauses have become a legal challenge for some. These are signed agreements between employees and employers that prohibit the employee from going to a rival company after resignation.
+                checkpoints: [
+                    {
+                        question: "What are the recommended measures to prevent IP theft?",
+                        options: [
+                            "Only use legal agreements",
+                            "Focus solely on technical security measures",
+                            "Employee education, activity monitoring, and finding cybersecurity lapses",
+                            "Rely on antivirus software alone"
+                        ],
+                        correctAnswer: 2,
+                        points: 3
+                    },
+                    {
+                        question: "What does intellectual property (IP) include?",
+                        options: [
+                            "Only physical products",
+                            "Ideas, design, artistic works, images, videos, symbols, and names",
+                            "Just software code",
+                            "Only patents and trademarks"
+                        ],
+                        correctAnswer: 1,
+                        points: 2
+                    },
+                    {
+                        question: "What forms of IP theft are mentioned in the material?",
+                        options: [
+                            "Only software pirating",
+                            "Patent trolling, trademark infringement, software pirating, and counterfeit production",
+                            "Just copyright violations",
+                            "Only physical theft"
+                        ],
+                        correctAnswer: 1,
+                        points: 3
+                    }
+                ],
+                case: {
+                    title: "Oracle America, Inc. vs. Google LLC",
+                    cause: "Copyright infringement case involving software code and intellectual property rights",
+                    verdict: "Highlighted the complexities of IP protection in the technology sector and the significant financial stakes involved"
+                }
+            },
+            {
+                id: 'non-compete',
+                title: 'Non-Compete Laws',
+                icon: '⚖️',
+                content: `With frequent transitions and resignations, non-compete clauses have become a legal challenge for some. These are signed agreements between employees and employers that prohibit the employee from going to a rival company after resignation.
 
 The tech industry opposes non-competes clauses as it stifles innovations and hinders startup activities. On the other hand, others argue that it protects their business interests and trade secrets. But it all depends on how the company views its assets and the lengths it would take to protect them from being ripped off or stolen.`,
-      checkpoints: [
-        {
-          question: "What is the main tension regarding non-compete clauses in the tech industry?",
-          options: [
-            "Employee salary vs. company profits",
-            "Innovation and startup activities vs. protecting business interests and trade secrets",
-            "Remote work vs. office requirements",
-            "Contract length vs. benefits package"
-          ],
-          correctAnswer: 1,
-          points: 3
-        },
-        {
-          question: "What are non-compete clauses?",
-          options: [
-            "Salary negotiation agreements",
-            "Signed agreements prohibiting employees from going to rival companies after resignation",
-            "Benefits packages",
-            "Work schedule arrangements"
-          ],
-          correctAnswer: 1,
-          points: 2
-        }
-      ],
-      case: {
-        title: "Departing IT Staff in India locked with non-compete clauses",
-        cause: "IT professionals challenged restrictive non-compete agreements that limited career mobility",
-        verdict: "Case demonstrated the tension between protecting business interests and employee freedom in the technology sector"
-      }
-    },
-    {
-      id: 'avoiding-legal',
-      title: "Avoiding Legal Problems",
-      icon: <BookOpen className="w-6 h-6" />,
-      content: `Communication: Expectations should be communicated, and timeframes should be identified as the scope of work changes from time to time, affecting the timeline previously stated. Document these expectations and time frames to back-up future claims.
+                checkpoints: [
+                    {
+                        question: "What is the main tension regarding non-compete clauses in the tech industry?",
+                        options: [
+                            "Employee salary vs. company profits",
+                            "Innovation and startup activities vs. protecting business interests and trade secrets",
+                            "Remote work vs. office requirements",
+                            "Contract length vs. benefits package"
+                        ],
+                        correctAnswer: 1,
+                        points: 3
+                    },
+                    {
+                        question: "What are non-compete clauses?",
+                        options: [
+                            "Salary negotiation agreements",
+                            "Signed agreements prohibiting employees from going to rival companies after resignation",
+                            "Benefits packages",
+                            "Work schedule arrangements"
+                        ],
+                        correctAnswer: 1,
+                        points: 2
+                    }
+                ],
+                case: {
+                    title: "Departing IT Staff in India locked with non-compete clauses",
+                    cause: "IT professionals challenged restrictive non-compete agreements that limited career mobility",
+                    verdict: "Case demonstrated the tension between protecting business interests and employee freedom in the technology sector"
+                }
+            },
+            {
+                id: 'avoiding-legal',
+                title: 'Avoiding Legal Problems',
+                icon: '📋',
+                content: `Communication: Expectations should be communicated, and timeframes should be identified as the scope of work changes from time to time, affecting the timeline previously stated. Document these expectations and time frames to back-up future claims.
 
 Picking the Right Battles: If failures happen, own them. It is much cheaper to apologize than to be served to court. Do not try to cover errors or problems by glossing over them.
 
 Source of Legal Advice: If legal matters arise, it is a must to involve qualified and trusted legal counsel. Sourcing through the internet for legal opinions is acceptable, but there is nothing more valid than advice from a qualified and experienced lawyer.
 
 Following Through: Timely performance regarding expectations is another way to avoid legal problems. Always possess proof of performance that can be a type of receipt, acknowledgment, or even a simple email.`,
-      checkpoints: [
-        {
-          question: "According to the material, what should you do if failures happen?",
-          options: [
-            "Cover them up to protect the company image",
-            "Blame external factors",
-            "Own them - it's cheaper to apologize than to be served to court",
-            "Wait and see if anyone notices"
-          ],
-          correctAnswer: 2,
-          points: 3
-        },
-        {
-          question: "What is recommended regarding legal advice?",
-          options: [
-            "Always rely on internet sources",
-            "Involve qualified and trusted legal counsel when legal matters arise",
-            "Handle everything internally",
-            "Ignore legal issues"
-          ],
-          correctAnswer: 1,
-          points: 3
-        },
-        {
-          question: "Why is documentation important in avoiding legal problems?",
-          options: [
-            "It's just a formality",
-            "To back-up future claims regarding expectations and timeframes",
-            "It's optional",
-            "Only for large contracts"
-          ],
-          correctAnswer: 1,
-          points: 2
-        }
-      ]
-    },
-    {
-      id: 'cyber-protection',
-      title: "Cyber Protection",
-      icon: <Shield className="w-6 h-6" />,
-      content: `It combines the benefits of data protection and cyber security needed for business operations in the current cyber threat landscape. As data and information become the core of all business operations, effective cyber protection is necessary to safeguard organizations, people, and society.
+                checkpoints: [
+                    {
+                        question: "According to the material, what should you do if failures happen?",
+                        options: [
+                            "Cover them up to protect the company image",
+                            "Blame external factors",
+                            "Own them - it's cheaper to apologize than to be served to court",
+                            "Wait and see if anyone notices"
+                        ],
+                        correctAnswer: 2,
+                        points: 3
+                    },
+                    {
+                        question: "What is recommended regarding legal advice?",
+                        options: [
+                            "Always rely on internet sources",
+                            "Involve qualified and trusted legal counsel when legal matters arise",
+                            "Handle everything internally",
+                            "Ignore legal issues"
+                        ],
+                        correctAnswer: 1,
+                        points: 3
+                    },
+                    {
+                        question: "Why is documentation important in avoiding legal problems?",
+                        options: [
+                            "It's just a formality",
+                            "To back-up future claims regarding expectations and timeframes",
+                            "It's optional",
+                            "Only for large contracts"
+                        ],
+                        correctAnswer: 1,
+                        points: 2
+                    }
+                ]
+            },
+            {
+                id: 'cyber-protection',
+                title: 'Cyber Protection',
+                icon: '🛡️',
+                content: `It combines the benefits of data protection and cyber security needed for business operations in the current cyber threat landscape. As data and information become the core of all business operations, effective cyber protection is necessary to safeguard organizations, people, and society.
 
 Cyber Protection vs. Cybersecurity: Cyber protection and cybersecurity differ in their relationship to data and information. Cybersecurity safeguards the systems that make data access, storage, transfer, and authentication possible instead of mainly focusing on data protection.
 
 It is still an essential part of staying protected online, but it does not fully support the challenges that data and information protection are at risk. Therefore, cyber protection is formed by integrating cybersecurity with data protection to address new forms of malicious cyber-attacks fully.`,
-      checkpoints: [
-        {
-          question: "How does cyber protection differ from cybersecurity?",
-          options: [
-            "They are exactly the same concept",
-            "Cyber protection integrates cybersecurity with data protection",
-            "Only the terminology is different",
-            "Cybersecurity is an outdated term"
-          ],
-          correctAnswer: 1,
-          points: 3
-        },
-        {
-          question: "What does cybersecurity primarily safeguard?",
-          options: [
-            "Only data files",
-            "The systems that make data access, storage, transfer, and authentication possible",
-            "Only networks",
-            "Just user passwords"
-          ],
-          correctAnswer: 1,
-          points: 2
-        },
-        {
-          question: "Why is cyber protection necessary for business operations?",
-          options: [
-            "It's a legal requirement only",
-            "To safeguard organizations, people, and society as data becomes core to operations",
-            "It's optional for small businesses",
-            "Only for government agencies"
-          ],
-          correctAnswer: 1,
-          points: 3
-        }
-      ]
-    },
-    {
-      id: 'scopes-cyber',
-      title: "Scopes of Cyber Protection",
-      icon: <Shield className="w-6 h-6" />,
-      content: `1. Safety: This deals with ensuring that a reliable copy of the data and information is always available. It will be a backup whenever the original copy gets corrupted or compromised due to cyber-attacks.
+                checkpoints: [
+                    {
+                        question: "How does cyber protection differ from cybersecurity?",
+                        options: [
+                            "They are exactly the same concept",
+                            "Cyber protection integrates cybersecurity with data protection",
+                            "Only the terminology is different",
+                            "Cybersecurity is an outdated term"
+                        ],
+                        correctAnswer: 1,
+                        points: 3
+                    },
+                    {
+                        question: "What does cybersecurity primarily safeguard?",
+                        options: [
+                            "Only data files",
+                            "The systems that make data access, storage, transfer, and authentication possible",
+                            "Only networks",
+                            "Just user passwords"
+                        ],
+                        correctAnswer: 1,
+                        points: 2
+                    },
+                    {
+                        question: "Why is cyber protection necessary for business operations?",
+                        options: [
+                            "It's a legal requirement only",
+                            "To safeguard organizations, people, and society as data becomes core to operations",
+                            "It's optional for small businesses",
+                            "Only for government agencies"
+                        ],
+                        correctAnswer: 1,
+                        points: 3
+                    }
+                ]
+            },
+            {
+                id: 'scopes-cyber',
+                title: 'Scopes of Cyber Protection',
+                icon: '🛡️',
+                content: `1. Safety: This deals with ensuring that a reliable copy of the data and information is always available. It will be a backup whenever the original copy gets corrupted or compromised due to cyber-attacks.
 
 2. Accessibility: This deals with ensuring that data and information are available from any location at any time. Storing valuable data and information to various mediums ensures safety and accessibility.
 
@@ -400,423 +984,347 @@ It is still an essential part of staying protected online, but it does not fully
 4. Authenticity: It deals with ensuring that backed-up data and information is an exact and unmodified copy of the original data. Practice putting multi-factor authentication on files or encrypting data that only trusted people can access.
 
 5. Security: It deals with ensuring that data, information, apps, and systems are protected against cyber threats. It is best to monitor wherever or whomever the data is passed along. Install antivirus software to prevent cyber-attacks and malware.`,
-      checkpoints: [
-        {
-          question: "Which scope ensures that backed-up data is an exact and unmodified copy of the original?",
-          options: [
-            "Safety",
-            "Privacy",
-            "Authenticity",
-            "Security"
-          ],
-          correctAnswer: 2,
-          points: 3
-        },
-        {
-          question: "What does the 'Safety' scope of cyber protection ensure?",
-          options: [
-            "Data is encrypted",
-            "A reliable copy of data is always available as backup",
-            "Only administrators have access",
-            "Antivirus is installed"
-          ],
-          correctAnswer: 1,
-          points: 3
-        },
-        {
-          question: "What does the 'Privacy' scope focus on?",
-          options: [
-            "Data backup procedures",
-            "Internet speed optimization",
-            "Full control and transparency over who can view and access data",
-            "Software updates"
-          ],
-          correctAnswer: 2,
-          points: 2
+                checkpoints: [
+                    {
+                        question: "Which scope ensures that backed-up data is an exact and unmodified copy of the original?",
+                        options: [
+                            "Safety",
+                            "Privacy",
+                            "Authenticity",
+                            "Security"
+                        ],
+                        correctAnswer: 2,
+                        points: 3
+                    },
+                    {
+                        question: "What does the 'Safety' scope of cyber protection ensure?",
+                        options: [
+                            "Data is encrypted",
+                            "A reliable copy of data is always available as backup",
+                            "Only administrators have access",
+                            "Antivirus is installed"
+                        ],
+                        correctAnswer: 1,
+                        points: 3
+                    },
+                    {
+                        question: "What does the 'Privacy' scope focus on?",
+                        options: [
+                            "Data backup procedures",
+                            "Internet speed optimization",
+                            "Full control and transparency over who can view and access data",
+                            "Software updates"
+                        ],
+                        correctAnswer: 2,
+                        points: 2
+                    }
+                ]
+            }
+        ];
+
+        // State
+        let timeSpent = 0;
+        let isActive = true;
+        let lastActivity = Date.now();
+        let completedSections = new Set();
+        let checkpointAnswers = {};
+        const REQUIRED_TIME = 600; // 10 minutes
+
+        // Initialize
+        function init() {
+            renderSections();
+            setupEventListeners();
+            startTimer();
+            updateNameDisplay();
+            updateProgress();
+            updateChecklist();
         }
-      ]
-    }
-  ];
 
-  const progress = (completedSections.size / sections.length) * 100;
-  const timeProgress = Math.min((timeSpent / REQUIRED_TIME) * 100, 100);
-  const currentScore = calculateTotalScore();
-  const sentenceCount = countSentences(formData.reflection);
-
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
-      {/* Header */}
-      <div className="bg-white shadow-lg sticky top-0 z-10">
-        <div className="max-w-6xl mx-auto px-6 py-6">
-          <h1 className="text-3xl font-bold text-gray-800 mb-6">Legal Awareness & Cyber Protection</h1>
-          
-          {/* Student Info Section */}
-          <div className="bg-gradient-to-r from-indigo-50 to-blue-50 rounded-lg p-6 mb-6 border-2 border-indigo-200">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Last Name</label>
-                <input
-                  type="text"
-                  value={formData.lastName}
-                  onChange={(e) => setFormData({...formData, lastName: e.target.value})}
-                  className="w-full px-4 py-3 border-2 border-indigo-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent font-semibold text-lg"
-                  placeholder="Enter your last name"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">First Name</label>
-                <input
-                  type="text"
-                  value={formData.firstName}
-                  onChange={(e) => setFormData({...formData, firstName: e.target.value})}
-                  className="w-full px-4 py-3 border-2 border-indigo-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent font-semibold text-lg"
-                  placeholder="Enter your first name"
-                />
-              </div>
-            </div>
+        // Render sections
+        function renderSections() {
+            const container = document.getElementById('sectionsContainer');
             
-            {(formData.firstName || formData.lastName) && (
-              <div className="bg-white rounded-lg p-4 border-2 border-indigo-300">
-                <p className="text-2xl font-bold text-indigo-900">
-                  {formData.firstName} {formData.lastName}
-                </p>
-                <p className="text-sm text-gray-600 mt-1">Date: {new Date().toLocaleDateString()}</p>
-              </div>
-            )}
-          </div>
-
-          {/* Progress Indicators */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {/* Time Progress */}
-            <div className="bg-blue-50 rounded-lg p-4">
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center gap-2">
-                  <Clock className={`w-5 h-5 ${isActive ? 'text-blue-600' : 'text-gray-400'}`} />
-                  <span className="font-semibold text-gray-700">Active Time</span>
-                </div>
-                <span className="text-lg font-bold text-blue-600">
-                  {formatTime(timeSpent)} / {formatTime(REQUIRED_TIME)}
-                </span>
-              </div>
-              <div className="w-full bg-gray-200 rounded-full h-3">
-                <div 
-                  className="bg-blue-600 h-3 rounded-full transition-all duration-300"
-                  style={{ width: `${timeProgress}%` }}
-                />
-              </div>
-              {!isActive && <p className="text-xs text-gray-500 mt-1">⚠️ Paused</p>}
-            </div>
-
-            {/* Section Progress */}
-            <div className="bg-green-50 rounded-lg p-4">
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center gap-2">
-                  <BookOpen className="w-5 h-5 text-green-600" />
-                  <span className="font-semibold text-gray-700">Sections</span>
-                </div>
-                <span className="text-lg font-bold text-green-600">
-                  {completedSections.size} / {sections.length}
-                </span>
-              </div>
-              <div className="w-full bg-gray-200 rounded-full h-3">
-                <div 
-                  className="bg-green-600 h-3 rounded-full transition-all duration-300"
-                  style={{ width: `${progress}%` }}
-                />
-              </div>
-            </div>
-
-            {/* Score Progress */}
-            <div className="bg-yellow-50 rounded-lg p-4">
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center gap-2">
-                  <Award className="w-5 h-5 text-yellow-600" />
-                  <span className="font-semibold text-gray-700">Score</span>
-                </div>
-                <span className="text-lg font-bold text-yellow-600">
-                  {currentScore} / 60
-                </span>
-              </div>
-              <div className="w-full bg-gray-200 rounded-full h-3">
-                <div 
-                  className="bg-yellow-600 h-3 rounded-full transition-all duration-300"
-                  style={{ width: `${(currentScore / 60) * 100}%` }}
-                />
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Main Content */}
-      <div className="max-w-6xl mx-auto px-6 py-8" ref={contentRef}>
-        {/* Sections */}
-        <div className="space-y-4 mb-8">
-          {sections.map((section, index) => {
-            const sectionPoints = section.checkpoints.reduce((sum, cp) => sum + cp.points, 0);
-            return (
-              <div key={index} className="bg-white rounded-xl shadow-md overflow-hidden">
-                <button
-                  onClick={() => handleSectionClick(index)}
-                  className="w-full px-6 py-4 flex items-center justify-between hover:bg-gray-50 transition-colors"
-                >
-                  <div className="flex items-center gap-4">
-                    {completedSections.has(index) ? (
-                      <CheckCircle className="w-6 h-6 text-green-500 flex-shrink-0" />
-                    ) : (
-                      <Circle className="w-6 h-6 text-gray-300 flex-shrink-0" />
-                    )}
-                    <div className="flex items-center gap-3">
-                      {section.icon}
-                      <h3 className="text-xl font-bold text-gray-800">{section.title}</h3>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-4">
-                    <span className="text-sm font-semibold text-yellow-600 bg-yellow-50 px-3 py-1 rounded-full">
-                      {section.checkpoints.length} questions • {sectionPoints} pts
-                    </span>
-                    <span className="text-gray-400">{activeSection === index ? '▼' : '▶'}</span>
-                  </div>
-                </button>
-
-                {activeSection === index && (
-                  <div className="px-6 pb-6 space-y-6">
-                    <div className="prose prose-lg max-w-none">
-                      <p className="whitespace-pre-line text-gray-700 leading-relaxed">{section.content}</p>
-                    </div>
-
-                    {section.case && (
-                      <div className="bg-amber-50 border-l-4 border-amber-500 rounded-lg p-6">
-                        <h4 className="font-bold text-lg text-amber-900 mb-3 flex items-center gap-2">
-                          <Scale className="w-5 h-5" />
-                          Legal Case Example
-                        </h4>
-                        <div className="space-y-2 text-gray-800">
-                          <p><strong>Case:</strong> {section.case.title}</p>
-                          <p><strong>Cause:</strong> {section.case.cause}</p>
-                          <p><strong>Verdict/Outcome:</strong> {section.case.verdict}</p>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Checkpoint Questions */}
-                    <div className="space-y-4">
-                      {section.checkpoints.map((checkpoint, checkpointIndex) => {
-                        const key = `${section.id}-${checkpointIndex}`;
-                        return (
-                          <div key={checkpointIndex} className="bg-purple-50 rounded-lg p-6 border-2 border-purple-200">
-                            <div className="flex items-center justify-between mb-3">
-                              <h4 className="font-bold text-lg text-purple-900 flex items-center gap-2">
-                                <CheckCircle className="w-5 h-5" />
-                                Checkpoint {checkpointIndex + 1}
-                              </h4>
-                              <span className="bg-purple-600 text-white px-3 py-1 rounded-full text-sm font-bold">
-                                {checkpoint.points} pts
-                              </span>
+            sections.forEach((section, sectionIndex) => {
+                const totalPoints = section.checkpoints.reduce((sum, cp) => sum + cp.points, 0);
+                
+                const sectionHTML = `
+                    <div class="section-card">
+                        <button class="section-header" onclick="toggleSection(${sectionIndex})">
+                            <div class="section-left">
+                                <span id="section-check-${sectionIndex}">⭕</span>
+                                <div class="section-title">
+                                    <span class="icon">${section.icon}</span>
+                                    <h3>${section.title}</h3>
+                                </div>
                             </div>
-                            <p className="text-gray-800 font-medium mb-4">{checkpoint.question}</p>
-                            <div className="space-y-2">
-                              {checkpoint.options.map((option, optIndex) => {
-                                const isSelected = checkpointAnswers[key] === optIndex;
-                                const isCorrect = optIndex === checkpoint.correctAnswer;
-                                const showFeedback = showCheckpointFeedback[key];
-                                
-                                let buttonClass = 'bg-white hover:bg-purple-100 text-gray-700 border-2 border-gray-200';
-                                if (isSelected && showFeedback) {
-                                  if (isCorrect) {
-                                    buttonClass = 'bg-green-500 text-white border-2 border-green-600';
-                                  } else {
-                                    buttonClass = 'bg-red-500 text-white border-2 border-red-600';
-                                  }
-                                } else if (showFeedback && isCorrect) {
-                                  buttonClass = 'bg-green-100 text-green-800 border-2 border-green-300';
-                                }
-
-                                return (
-                                  <button
-                                    key={optIndex}
-                                    onClick={() => handleCheckpointAnswer(section.id, checkpointIndex, optIndex)}
-                                    disabled={showCheckpointFeedback[key]}
-                                    className={`w-full text-left px-4 py-3 rounded-lg transition-colors ${buttonClass} ${
-                                      showCheckpointFeedback[key] ? 'cursor-not-allowed' : 'cursor-pointer'
-                                    }`}
-                                  >
-                                    <div className="flex items-center justify-between">
-                                      <span>{option}</span>
-                                      {showFeedback && isSelected && (
-                                        <span className="ml-2 text-xl">
-                                          {isCorrect ? '✓' : '✗'}
-                                        </span>
-                                      )}
+                            <div class="section-right">
+                                <span class="points-badge">${section.checkpoints.length} questions • ${totalPoints} pts</span>
+                                <span id="section-arrow-${sectionIndex}">▶</span>
+                            </div>
+                        </button>
+                        <div class="section-content" id="section-content-${sectionIndex}">
+                            <div class="content-text">${section.content}</div>
+                            
+                            ${section.case ? `
+                                <div class="case-card">
+                                    <h4><span class="icon-sm">⚖️</span> Legal Case Example</h4>
+                                    <p><strong>Case:</strong> ${section.case.title}</p>
+                                    <p><strong>Cause:</strong> ${section.case.cause}</p>
+                                    <p><strong>Verdict/Outcome:</strong> ${section.case.verdict}</p>
+                                </div>
+                            ` : ''}
+                            
+                            ${section.checkpoints.map((cp, cpIndex) => `
+                                <div class="checkpoint-card">
+                                    <div class="checkpoint-header">
+                                        <h4 class="checkpoint-title">
+                                            <span class="icon-sm">✓</span>
+                                            Checkpoint ${cpIndex + 1}
+                                        </h4>
+                                        <span class="checkpoint-points">${cp.points} pts</span>
                                     </div>
-                                  </button>
-                                );
-                              })}
-                            </div>
-                            {showCheckpointFeedback[key] && (
-                              <div className={`mt-4 p-3 rounded-lg ${
-                                checkpointAnswers[key] === checkpoint.correctAnswer
-                                  ? 'bg-green-50 text-green-800'
-                                  : 'bg-red-50 text-red-800'
-                              }`}>
-                                {checkpointAnswers[key] === checkpoint.correctAnswer
-                                  ? `✓ Correct! You earned ${checkpoint.points} points.`
-                                  : `✗ Incorrect. The correct answer has been highlighted.`
-                                }
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })}
+                                    <p class="checkpoint-question">${cp.question}</p>
+                                    <div>
+                                        ${cp.options.map((option, optIndex) => `
+                                            <button class="option-btn" 
+                                                    id="option-${section.id}-${cpIndex}-${optIndex}"
+                                                    onclick="selectAnswer('${section.id}', ${cpIndex}, ${optIndex}, ${cp.correctAnswer}, ${cp.points})">
+                                                <span>${option}</span>
+                                            </button>
+                                        `).join('')}
+                                    </div>
+                                    <div id="feedback-${section.id}-${cpIndex}" style="display: none;"></div>
+                                </div>
+                            `).join('')}
+                        </div>
                     </div>
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
+                `;
+                
+                container.innerHTML += sectionHTML;
+            });
+        }
 
-        {/* Reflection Essay Section */}
-        <div className="bg-white rounded-xl shadow-lg p-8">
-          <h2 className="text-2xl font-bold text-gray-800 mb-4 flex items-center gap-3">
-            <BookOpen className="w-7 h-7 text-indigo-600" />
-            Final Reflection Essay
-          </h2>
-          
-          <div className="bg-indigo-50 border-l-4 border-indigo-500 rounded-lg p-6 mb-6">
-            <p className="text-gray-800 font-medium mb-2">
-              <strong>Instructions:</strong>
-            </p>
-            <p className="text-gray-700">
-              In at least 10 sentences, explain how the principles from the discussed cases apply to the main topics. 
-              Provide your personal interpretation while keeping legal accuracy. This reflection demonstrates your 
-              understanding of the material covered in this training.
-            </p>
-          </div>
-
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">
-              Your Reflection (Minimum 10 sentences) *
-            </label>
-            <textarea
-              value={formData.reflection}
-              onChange={(e) => setFormData({...formData, reflection: e.target.value})}
-              rows={15}
-              className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-              placeholder="Write your reflection here..."
-            />
-            <div className="flex justify-between items-center mt-3">
-              <p className="text-sm text-gray-600">
-                Sentences: <span className={`font-bold text-lg ${sentenceCount >= 10 ? 'text-green-600' : 'text-red-600'}`}>
-                  {sentenceCount} / 10
-                </span>
-                {sentenceCount >= 10 && <span className="ml-2 text-green-600">✓ Complete</span>}
-                {sentenceCount < 10 && <span className="ml-2 text-red-600">⚠ {10 - sentenceCount} more needed</span>}
-              </p>
-            </div>
-          </div>
-
-          <div className="mt-8 bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg p-6 border-2 border-green-200">
-            <div className="flex items-center gap-4">
-              <CheckCircle className="w-12 h-12 text-green-600 flex-shrink-0" />
-              <div>
-                <h3 className="text-lg font-bold text-gray-800 mb-2">Ready to Screenshot!</h3>
-                <p className="text-gray-700">
-                  Once you've completed all requirements, take a screenshot of the top of this page showing your name, 
-                  sections completed, time spent, and total score. No submission button needed - just capture your results!
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {/* Completion Status */}
-          <div className="mt-6 space-y-3">
-            <h3 className="font-semibold text-gray-800 mb-3">Completion Checklist:</h3>
+        // Toggle section
+        function toggleSection(index) {
+            const content = document.getElementById(`section-content-${index}`);
+            const arrow = document.getElementById(`section-arrow-${index}`);
+            const check = document.getElementById(`section-check-${index}`);
             
-            <div className={`flex items-center gap-3 p-3 rounded-lg ${
-              formData.firstName && formData.lastName ? 'bg-green-50' : 'bg-gray-50'
-            }`}>
-              {formData.firstName && formData.lastName ? (
-                <CheckCircle className="w-5 h-5 text-green-600" />
-              ) : (
-                <Circle className="w-5 h-5 text-gray-400" />
-              )}
-              <span className={formData.firstName && formData.lastName ? 'text-green-800 font-medium' : 'text-gray-600'}>
-                Name entered
-              </span>
-            </div>
+            const isOpen = content.classList.contains('active');
+            
+            if (isOpen) {
+                content.classList.remove('active');
+                arrow.textContent = '▶';
+            } else {
+                content.classList.add('active');
+                arrow.textContent = '▼';
+                completedSections.add(index);
+                check.textContent = '✅';
+                updateProgress();
+                updateChecklist();
+            }
+        }
 
-            <div className={`flex items-center gap-3 p-3 rounded-lg ${
-              timeSpent >= REQUIRED_TIME ? 'bg-green-50' : 'bg-gray-50'
-            }`}>
-              {timeSpent >= REQUIRED_TIME ? (
-                <CheckCircle className="w-5 h-5 text-green-600" />
-              ) : (
-                <Circle className="w-5 h-5 text-gray-400" />
-              )}
-              <span className={timeSpent >= REQUIRED_TIME ? 'text-green-800 font-medium' : 'text-gray-600'}>
-                Minimum reading time completed ({formatTime(timeSpent)} / {formatTime(REQUIRED_TIME)})
-              </span>
-            </div>
+        // Select answer
+        function selectAnswer(sectionId, checkpointIndex, optionIndex, correctAnswer, points) {
+            const key = `${sectionId}-${checkpointIndex}`;
+            
+            // Check if already answered
+            if (checkpointAnswers[key] !== undefined) return;
+            
+            // Store answer
+            checkpointAnswers[key] = optionIndex;
+            
+            // Update UI
+            const isCorrect = optionIndex === correctAnswer;
+            
+            // Highlight selected answer
+            const selectedBtn = document.getElementById(`option-${sectionId}-${checkpointIndex}-${optionIndex}`);
+            selectedBtn.classList.add(isCorrect ? 'correct' : 'incorrect');
+            
+            // Show correct answer if wrong
+            if (!isCorrect) {
+                const correctBtn = document.getElementById(`option-${sectionId}-${checkpointIndex}-${correctAnswer}`);
+                correctBtn.classList.add('highlight-correct');
+            }
+            
+            // Disable all options
+            sections.find(s => s.id === sectionId).checkpoints[checkpointIndex].options.forEach((_, i) => {
+                const btn = document.getElementById(`option-${sectionId}-${checkpointIndex}-${i}`);
+                btn.disabled = true;
+            });
+            
+            // Show feedback
+            const feedback = document.getElementById(`feedback-${sectionId}-${checkpointIndex}`);
+            feedback.style.display = 'block';
+            feedback.className = `feedback ${isCorrect ? 'correct' : 'incorrect'}`;
+            feedback.textContent = isCorrect 
+                ? `✓ Correct! You earned ${points} points.`
+                : `✗ Incorrect. The correct answer has been highlighted.`;
+            
+            updateProgress();
+            updateChecklist();
+        }
 
-            <div className={`flex items-center gap-3 p-3 rounded-lg ${
-              completedSections.size === sections.length ? 'bg-green-50' : 'bg-gray-50'
-            }`}>
-              {completedSections.size === sections.length ? (
-                <CheckCircle className="w-5 h-5 text-green-600" />
-              ) : (
-                <Circle className="w-5 h-5 text-gray-400" />
-              )}
-              <span className={completedSections.size === sections.length ? 'text-green-800 font-medium' : 'text-gray-600'}>
-                All sections opened ({completedSections.size} / {sections.length})
-              </span>
-            </div>
+        // Calculate score
+        function calculateScore() {
+            let score = 0;
+            sections.forEach(section => {
+                section.checkpoints.forEach((cp, cpIndex) => {
+                    const key = `${section.id}-${cpIndex}`;
+                    if (checkpointAnswers[key] === cp.correctAnswer) {
+                        score += cp.points;
+                    }
+                });
+            });
+            return score;
+        }
 
-            <div className={`flex items-center gap-3 p-3 rounded-lg ${
-              sentenceCount >= 10 ? 'bg-green-50' : 'bg-gray-50'
-            }`}>
-              {sentenceCount >= 10 ? (
-                <CheckCircle className="w-5 h-5 text-green-600" />
-              ) : (
-                <Circle className="w-5 h-5 text-gray-400" />
-              )}
-              <span className={sentenceCount >= 10 ? 'text-green-800 font-medium' : 'text-gray-600'}>
-                Reflection essay completed ({sentenceCount} / 10 sentences)
-              </span>
-            </div>
+        // Count sentences
+        function countSentences(text) {
+            const sentences = text.match(/[^.!?]+[.!?]+/g) || [];
+            return sentences.filter(s => s.trim().length > 10).length;
+        }
 
-            <div className={`flex items-center gap-3 p-3 rounded-lg ${
-              currentScore > 0 ? 'bg-green-50' : 'bg-gray-50'
-            }`}>
-              {currentScore > 0 ? (
-                <CheckCircle className="w-5 h-5 text-green-600" />
-              ) : (
-                <Circle className="w-5 h-5 text-gray-400" />
-              )}
-              <span className={currentScore > 0 ? 'text-green-800 font-medium' : 'text-gray-600'}>
-                Checkpoint questions answered (Score: {currentScore} / 60 points)
-              </span>
-            </div>
-          </div>
+        // Format time
+        function formatTime(seconds) {
+            const mins = Math.floor(seconds / 60);
+            const secs = seconds % 60;
+            return `${mins}:${secs.toString().padStart(2, '0')}`;
+        }
 
-          {(formData.firstName && formData.lastName && timeSpent >= REQUIRED_TIME && 
-            completedSections.size === sections.length && sentenceCount >= 10) && (
-            <div className="mt-6 bg-gradient-to-r from-yellow-50 to-amber-50 rounded-lg p-6 border-2 border-yellow-300">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-2xl font-bold text-amber-800 mb-1">🎉 All Requirements Complete!</p>
-                  <p className="text-gray-700">
-                    Scroll to the top and take a screenshot showing your name, progress, and score.
-                  </p>
+        // Update progress
+        function updateProgress() {
+            // Time
+            const timePercent = Math.min((timeSpent / REQUIRED_TIME) * 100, 100);
+            document.getElementById('timeValue').textContent = `${formatTime(timeSpent)} / ${formatTime(REQUIRED_TIME)}`;
+            document.getElementById('timeBar').style.width = `${timePercent}%`;
+            
+            // Sections
+            const sectionPercent = (completedSections.size / sections.length) * 100;
+            document.getElementById('sectionsValue').textContent = `${completedSections.size} / ${sections.length}`;
+            document.getElementById('sectionsBar').style.width = `${sectionPercent}%`;
+            
+            // Score
+            const score = calculateScore();
+            const scorePercent = (score / 60) * 100;
+            document.getElementById('scoreValue').textContent = `${score} / 60`;
+            document.getElementById('scoreBar').style.width = `${scorePercent}%`;
+        }
+
+        // Update name display
+        function updateNameDisplay() {
+            const firstName = document.getElementById('firstName').value.trim();
+            const lastName = document.getElementById('lastName').value.trim();
+            const display = document.getElementById('nameDisplay');
+            const fullName = document.getElementById('fullName');
+            const dateDisplay = document.getElementById('dateDisplay');
+            
+            if (firstName || lastName) {
+                display.classList.add('show');
+                fullName.textContent = `${firstName} ${lastName}`;
+                dateDisplay.textContent = `Date: ${new Date().toLocaleDateString()}`;
+            } else {
+                display.classList.remove('show');
+            }
+            
+            updateChecklist();
+        }
+
+        // Update checklist
+        function updateChecklist() {
+            const firstName = document.getElementById('firstName').value.trim();
+            const lastName = document.getElementById('lastName').value.trim();
+            const reflection = document.getElementById('reflection').value;
+            const sentenceCount = countSentences(reflection);
+            
+            const nameComplete = firstName && lastName;
+            const timeComplete = timeSpent >= REQUIRED_TIME;
+            const sectionsComplete = completedSections.size === sections.length;
+            const reflectionComplete = sentenceCount >= 10;
+            
+            const checklist = [
+                { text: 'Name entered', complete: nameComplete },
+                { text: `Minimum reading time completed (${formatTime(timeSpent)} / ${formatTime(REQUIRED_TIME)})`, complete: timeComplete },
+                { text: `All sections opened (${completedSections.size} / ${sections.length})`, complete: sectionsComplete },
+                { text: `Reflection essay completed (${sentenceCount} / 10 sentences)`, complete: reflectionComplete },
+                { text: `Checkpoint questions answered (Score: ${calculateScore()} / 60 points)`, complete: calculateScore() > 0 }
+            ];
+            
+            const container = document.getElementById('checklistContainer');
+            container.innerHTML = checklist.map(item => `
+                <div class="checklist-item ${item.complete ? 'complete' : 'incomplete'}">
+                    <span class="icon-sm">${item.complete ? '✅' : '⭕'}</span>
+                    <span>${item.text}</span>
                 </div>
-                <Award className="w-16 h-16 text-yellow-500" />
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-};
+            `).join('');
+            
+            // Show completion banner
+            const allComplete = nameComplete && timeComplete && sectionsComplete && reflectionComplete;
+            document.getElementById('completionBanner').style.display = allComplete ? 'flex' : 'none';
+        }
 
-export default LegalLearningPlatform;
+        // Setup event listeners
+        function setupEventListeners() {
+            // Activity tracking
+            const events = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart'];
+            events.forEach(event => {
+                window.addEventListener(event, () => {
+                    lastActivity = Date.now();
+                    isActive = true;
+                    document.getElementById('pausedText').style.display = 'none';
+                });
+            });
+            
+            // Name inputs
+            document.getElementById('firstName').addEventListener('input', updateNameDisplay);
+            document.getElementById('lastName').addEventListener('input', updateNameDisplay);
+            
+            // Reflection textarea
+            document.getElementById('reflection').addEventListener('input', () => {
+                const text = document.getElementById('reflection').value;
+                const count = countSentences(text);
+                const countEl = document.getElementById('sentenceCount');
+                const statusEl = document.getElementById('sentenceStatus');
+                
+                countEl.textContent = `${count} / 10`;
+                countEl.className = `sentence-count ${count >= 10 ? 'complete' : 'incomplete'}`;
+                
+                if (count >= 10) {
+                    statusEl.textContent = '✓ Complete';
+                    statusEl.style.color = '#16a34a';
+                    statusEl.style.marginLeft = '8px';
+                } else {
+                    statusEl.textContent = `⚠ ${10 - count} more needed`;
+                    statusEl.style.color = '#dc2626';
+                    statusEl.style.marginLeft = '8px';
+                }
+                
+                updateChecklist();
+            });
+        }
+
+        // Timer
+        function startTimer() {
+            setInterval(() => {
+                const timeSinceActivity = Date.now() - lastActivity;
+                
+                if (timeSinceActivity < 3000) {
+                    timeSpent++;
+                    isActive = true;
+                    document.getElementById('pausedText').style.display = 'none';
+                } else {
+                    isActive = false;
+                    document.getElementById('pausedText').style.display = 'block';
+                }
+                
+                updateProgress();
+                updateChecklist();
+            }, 1000);
+        }
+
+        // Start application
+        init();
+    </script>
+</body>
+</html>
