@@ -1,0 +1,822 @@
+import React, { useState, useEffect, useRef } from 'react';
+import { CheckCircle, Circle, Clock, AlertCircle, BookOpen, Scale, Shield, Award } from 'lucide-react';
+
+const LegalLearningPlatform = () => {
+  const [activeSection, setActiveSection] = useState(null);
+  const [completedSections, setCompletedSections] = useState(new Set());
+  const [timeSpent, setTimeSpent] = useState(0);
+  const [isActive, setIsActive] = useState(true);
+  const [formData, setFormData] = useState({
+    lastName: '',
+    firstName: '',
+    reflection: ''
+  });
+  const [checkpointAnswers, setCheckpointAnswers] = useState({});
+  const [showCheckpointFeedback, setShowCheckpointFeedback] = useState({});
+  
+  const REQUIRED_TIME = 600; // 10 minutes in seconds
+  const contentRef = useRef(null);
+  const lastActivityRef = useRef(Date.now());
+
+  // Track user activity
+  useEffect(() => {
+    const handleActivity = () => {
+      lastActivityRef.current = Date.now();
+      setIsActive(true);
+    };
+
+    const events = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart'];
+    events.forEach(event => window.addEventListener(event, handleActivity));
+
+    return () => {
+      events.forEach(event => window.removeEventListener(event, handleActivity));
+    };
+  }, []);
+
+  // Timer with activity tracking
+  useEffect(() => {
+    const timer = setInterval(() => {
+      const timeSinceActivity = Date.now() - lastActivityRef.current;
+      if (timeSinceActivity < 3000) {
+        setTimeSpent(prev => prev + 1);
+      } else {
+        setIsActive(false);
+      }
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, []);
+
+  const formatTime = (seconds) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  const countSentences = (text) => {
+    const sentences = text.match(/[^.!?]+[.!?]+/g) || [];
+    return sentences.filter(s => s.trim().length > 10).length;
+  };
+
+  const calculateTotalScore = () => {
+    let total = 0;
+    sections.forEach((section) => {
+      section.checkpoints.forEach((checkpoint, checkpointIndex) => {
+        const key = `${section.id}-${checkpointIndex}`;
+        if (checkpointAnswers[key] !== undefined && checkpointAnswers[key] === checkpoint.correctAnswer) {
+          total += checkpoint.points;
+        }
+      });
+    });
+    return total;
+  };
+
+  const handleSectionClick = (index) => {
+    setActiveSection(activeSection === index ? null : index);
+    setCompletedSections(prev => new Set([...prev, index]));
+  };
+
+  const handleCheckpointAnswer = (sectionId, checkpointIndex, answerIndex) => {
+    const key = `${sectionId}-${checkpointIndex}`;
+    setCheckpointAnswers({...checkpointAnswers, [key]: answerIndex});
+    setShowCheckpointFeedback({...showCheckpointFeedback, [key]: true});
+  };
+
+  const sections = [
+    {
+      id: 'legal-awareness',
+      title: "Legal Awareness",
+      icon: <Scale className="w-6 h-6" />,
+      content: `The legal system on information systems and technology develops daily as technology grows. These developments can have meaningful effects on organizations such as the following:
+
+• Security Expectation: Clients and partners expect extensive security to protect their data.
+• Organization Expectation: They expect organizations to adhere to lawful paths in achieving commercial goals.
+• Damages: If organizations miss a new legal ruling, it could hurt the organization, its brand, and everyone involved.`,
+      checkpoints: [
+        {
+          question: "Why is staying updated with legal developments crucial for organizations?",
+          options: [
+            "Only for compliance purposes",
+            "To protect data, reputation, and stakeholders from potential damages",
+            "It's optional for most companies",
+            "Just for large corporations"
+          ],
+          correctAnswer: 1,
+          points: 3
+        },
+        {
+          question: "What are the three main expectations mentioned that affect organizations?",
+          options: [
+            "Profit, growth, and innovation",
+            "Security expectation, organization expectation, and damages",
+            "Hiring, training, and retention",
+            "Marketing, sales, and customer service"
+          ],
+          correctAnswer: 1,
+          points: 2
+        }
+      ],
+      case: {
+        title: "Facebook-Cambridge Analytica Data Breach",
+        cause: "Facebook was criticized for leaking users' data to consulting firm Cambridge Analytica during the 2016 Presidential Election",
+        verdict: "This cybersecurity failure adversely affected businesses, the economy, and the country, leading to personal information breach and potential legal repercussions"
+      }
+    },
+    {
+      id: 'net-neutrality',
+      title: "Net Neutrality",
+      icon: <BookOpen className="w-6 h-6" />,
+      content: `It is the notion that equally treats all content flowing through the cables and towers of internet service providers (ISP). It requires ISPs to not slide additional data into "fast lanes" that block or discriminate against the contents of other ISP.
+
+No law, rule, or regulation in the Philippines limits or promotes net neutrality. With this, ISPs can purposely increase or decrease the bandwidth allocation depending on their customers' pricing. It affects any small- or medium-sized company that relies on the internet.
+
+For example, telecommunications companies like Smart and Globe provide add-on packages for their users in their services, such as free YouTube access and free Facebook data. Although it does appear a good deal for users, in hindsight, these companies forcefully influence their users to use services from other companies agreed upon over others.`,
+      checkpoints: [
+        {
+          question: "What is the main concern with ISPs creating 'fast lanes' for certain content?",
+          options: [
+            "It increases internet speed for everyone",
+            "It discriminates against content and violates equal access principles",
+            "It reduces ISP operational costs",
+            "It improves network security"
+          ],
+          correctAnswer: 1,
+          points: 3
+        },
+        {
+          question: "What is the current status of net neutrality regulation in the Philippines?",
+          options: [
+            "Strictly regulated by law",
+            "No law, rule, or regulation limits or promotes it",
+            "Banned completely",
+            "Only applies to large ISPs"
+          ],
+          correctAnswer: 1,
+          points: 2
+        },
+        {
+          question: "How do add-on packages from telecoms like Smart and Globe affect users?",
+          options: [
+            "They provide unlimited benefits",
+            "They have no significant impact",
+            "They forcefully influence users to use services from agreed-upon companies",
+            "They improve overall internet quality"
+          ],
+          correctAnswer: 2,
+          points: 3
+        }
+      ],
+      case: {
+        title: "ISPs vs. California's Net Neutrality Law",
+        cause: "Internet Service Providers challenged California's strict net neutrality regulations that prevented paid prioritization and throttling",
+        verdict: "The case highlighted the ongoing debate between business interests and equal internet access rights"
+      }
+    },
+    {
+      id: 'data-protection',
+      title: "Data Protection",
+      icon: <Shield className="w-6 h-6" />,
+      content: `Most of the public wants their online data and information to be private and secure. Working with the personal information of partners, clients or stakeholders requires covering the bases and confirming the structural soundness of the network, prevention of cybersecurity breaches, and transparency with them.
+
+For instance, in the United States, Facebook was criticized for leaking users' data to consulting firm Cambridge Analytica during the 2016 Presidential Election. It poses a personal information breach and other potential legal repercussions. This cybersecurity failure adversely affects businesses, the economy, and the country.
+
+It is encouraged to be truthful and transparent in handling personal data by giving precise and timely reports and updates.`,
+      checkpoints: [
+        {
+          question: "What is the primary obligation when handling personal data according to the material?",
+          options: [
+            "Store it on multiple servers",
+            "Truthfulness, transparency, and providing precise and timely reports",
+            "Encrypt all data files",
+            "Limit access to executives only"
+          ],
+          correctAnswer: 1,
+          points: 3
+        },
+        {
+          question: "What are the key requirements when working with personal information?",
+          options: [
+            "Speed and efficiency only",
+            "Covering bases, confirming network soundness, preventing breaches, and transparency",
+            "Cost reduction and profit maximization",
+            "Marketing and sales optimization"
+          ],
+          correctAnswer: 1,
+          points: 2
+        }
+      ]
+    },
+    {
+      id: 'ip-theft',
+      title: "IP Theft",
+      icon: <Shield className="w-6 h-6" />,
+      content: `Intellectual property (IP) theft is stealing data from a company. IP involves ideas, design, artistic works, images, videos, symbols, and names that are assets to a company.
+
+IP theft covers patent trolling, trademark infringement, software pirating, and counterfeit production that is widespread across the internet.
+
+Specifically, patent trolling deals when a massive company purchases internet security technology for Apple's FaceTime features. Apple is ordered to pay a settlement of more than $500 million.
+
+To prevent facing and becoming a victim of IP theft, establish stricter security policies and procedures to protect valuable data. This includes educating the employees, monitoring their activity, and finding the company's cybersecurity lapses and weak spots.`,
+      checkpoints: [
+        {
+          question: "What are the recommended measures to prevent IP theft?",
+          options: [
+            "Only use legal agreements",
+            "Focus solely on technical security measures",
+            "Employee education, activity monitoring, and finding cybersecurity lapses",
+            "Rely on antivirus software alone"
+          ],
+          correctAnswer: 2,
+          points: 3
+        },
+        {
+          question: "What does intellectual property (IP) include?",
+          options: [
+            "Only physical products",
+            "Ideas, design, artistic works, images, videos, symbols, and names",
+            "Just software code",
+            "Only patents and trademarks"
+          ],
+          correctAnswer: 1,
+          points: 2
+        },
+        {
+          question: "What forms of IP theft are mentioned in the material?",
+          options: [
+            "Only software pirating",
+            "Patent trolling, trademark infringement, software pirating, and counterfeit production",
+            "Just copyright violations",
+            "Only physical theft"
+          ],
+          correctAnswer: 1,
+          points: 3
+        }
+      ],
+      case: {
+        title: "Oracle America, Inc. vs. Google LLC",
+        cause: "Copyright infringement case involving software code and intellectual property rights",
+        verdict: "Highlighted the complexities of IP protection in the technology sector and the significant financial stakes involved"
+      }
+    },
+    {
+      id: 'non-compete',
+      title: "Non-Compete Laws",
+      icon: <Scale className="w-6 h-6" />,
+      content: `With frequent transitions and resignations, non-compete clauses have become a legal challenge for some. These are signed agreements between employees and employers that prohibit the employee from going to a rival company after resignation.
+
+The tech industry opposes non-competes clauses as it stifles innovations and hinders startup activities. On the other hand, others argue that it protects their business interests and trade secrets. But it all depends on how the company views its assets and the lengths it would take to protect them from being ripped off or stolen.`,
+      checkpoints: [
+        {
+          question: "What is the main tension regarding non-compete clauses in the tech industry?",
+          options: [
+            "Employee salary vs. company profits",
+            "Innovation and startup activities vs. protecting business interests and trade secrets",
+            "Remote work vs. office requirements",
+            "Contract length vs. benefits package"
+          ],
+          correctAnswer: 1,
+          points: 3
+        },
+        {
+          question: "What are non-compete clauses?",
+          options: [
+            "Salary negotiation agreements",
+            "Signed agreements prohibiting employees from going to rival companies after resignation",
+            "Benefits packages",
+            "Work schedule arrangements"
+          ],
+          correctAnswer: 1,
+          points: 2
+        }
+      ],
+      case: {
+        title: "Departing IT Staff in India locked with non-compete clauses",
+        cause: "IT professionals challenged restrictive non-compete agreements that limited career mobility",
+        verdict: "Case demonstrated the tension between protecting business interests and employee freedom in the technology sector"
+      }
+    },
+    {
+      id: 'avoiding-legal',
+      title: "Avoiding Legal Problems",
+      icon: <BookOpen className="w-6 h-6" />,
+      content: `Communication: Expectations should be communicated, and timeframes should be identified as the scope of work changes from time to time, affecting the timeline previously stated. Document these expectations and time frames to back-up future claims.
+
+Picking the Right Battles: If failures happen, own them. It is much cheaper to apologize than to be served to court. Do not try to cover errors or problems by glossing over them.
+
+Source of Legal Advice: If legal matters arise, it is a must to involve qualified and trusted legal counsel. Sourcing through the internet for legal opinions is acceptable, but there is nothing more valid than advice from a qualified and experienced lawyer.
+
+Following Through: Timely performance regarding expectations is another way to avoid legal problems. Always possess proof of performance that can be a type of receipt, acknowledgment, or even a simple email.`,
+      checkpoints: [
+        {
+          question: "According to the material, what should you do if failures happen?",
+          options: [
+            "Cover them up to protect the company image",
+            "Blame external factors",
+            "Own them - it's cheaper to apologize than to be served to court",
+            "Wait and see if anyone notices"
+          ],
+          correctAnswer: 2,
+          points: 3
+        },
+        {
+          question: "What is recommended regarding legal advice?",
+          options: [
+            "Always rely on internet sources",
+            "Involve qualified and trusted legal counsel when legal matters arise",
+            "Handle everything internally",
+            "Ignore legal issues"
+          ],
+          correctAnswer: 1,
+          points: 3
+        },
+        {
+          question: "Why is documentation important in avoiding legal problems?",
+          options: [
+            "It's just a formality",
+            "To back-up future claims regarding expectations and timeframes",
+            "It's optional",
+            "Only for large contracts"
+          ],
+          correctAnswer: 1,
+          points: 2
+        }
+      ]
+    },
+    {
+      id: 'cyber-protection',
+      title: "Cyber Protection",
+      icon: <Shield className="w-6 h-6" />,
+      content: `It combines the benefits of data protection and cyber security needed for business operations in the current cyber threat landscape. As data and information become the core of all business operations, effective cyber protection is necessary to safeguard organizations, people, and society.
+
+Cyber Protection vs. Cybersecurity: Cyber protection and cybersecurity differ in their relationship to data and information. Cybersecurity safeguards the systems that make data access, storage, transfer, and authentication possible instead of mainly focusing on data protection.
+
+It is still an essential part of staying protected online, but it does not fully support the challenges that data and information protection are at risk. Therefore, cyber protection is formed by integrating cybersecurity with data protection to address new forms of malicious cyber-attacks fully.`,
+      checkpoints: [
+        {
+          question: "How does cyber protection differ from cybersecurity?",
+          options: [
+            "They are exactly the same concept",
+            "Cyber protection integrates cybersecurity with data protection",
+            "Only the terminology is different",
+            "Cybersecurity is an outdated term"
+          ],
+          correctAnswer: 1,
+          points: 3
+        },
+        {
+          question: "What does cybersecurity primarily safeguard?",
+          options: [
+            "Only data files",
+            "The systems that make data access, storage, transfer, and authentication possible",
+            "Only networks",
+            "Just user passwords"
+          ],
+          correctAnswer: 1,
+          points: 2
+        },
+        {
+          question: "Why is cyber protection necessary for business operations?",
+          options: [
+            "It's a legal requirement only",
+            "To safeguard organizations, people, and society as data becomes core to operations",
+            "It's optional for small businesses",
+            "Only for government agencies"
+          ],
+          correctAnswer: 1,
+          points: 3
+        }
+      ]
+    },
+    {
+      id: 'scopes-cyber',
+      title: "Scopes of Cyber Protection",
+      icon: <Shield className="w-6 h-6" />,
+      content: `1. Safety: This deals with ensuring that a reliable copy of the data and information is always available. It will be a backup whenever the original copy gets corrupted or compromised due to cyber-attacks.
+
+2. Accessibility: This deals with ensuring that data and information are available from any location at any time. Storing valuable data and information to various mediums ensures safety and accessibility.
+
+3. Privacy: This deals with ensuring full control and transparency over who can view and access the data and information. Only grant access to trusted people, especially those who directly use the data and information.
+
+4. Authenticity: It deals with ensuring that backed-up data and information is an exact and unmodified copy of the original data. Practice putting multi-factor authentication on files or encrypting data that only trusted people can access.
+
+5. Security: It deals with ensuring that data, information, apps, and systems are protected against cyber threats. It is best to monitor wherever or whomever the data is passed along. Install antivirus software to prevent cyber-attacks and malware.`,
+      checkpoints: [
+        {
+          question: "Which scope ensures that backed-up data is an exact and unmodified copy of the original?",
+          options: [
+            "Safety",
+            "Privacy",
+            "Authenticity",
+            "Security"
+          ],
+          correctAnswer: 2,
+          points: 3
+        },
+        {
+          question: "What does the 'Safety' scope of cyber protection ensure?",
+          options: [
+            "Data is encrypted",
+            "A reliable copy of data is always available as backup",
+            "Only administrators have access",
+            "Antivirus is installed"
+          ],
+          correctAnswer: 1,
+          points: 3
+        },
+        {
+          question: "What does the 'Privacy' scope focus on?",
+          options: [
+            "Data backup procedures",
+            "Internet speed optimization",
+            "Full control and transparency over who can view and access data",
+            "Software updates"
+          ],
+          correctAnswer: 2,
+          points: 2
+        }
+      ]
+    }
+  ];
+
+  const progress = (completedSections.size / sections.length) * 100;
+  const timeProgress = Math.min((timeSpent / REQUIRED_TIME) * 100, 100);
+  const currentScore = calculateTotalScore();
+  const sentenceCount = countSentences(formData.reflection);
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
+      {/* Header */}
+      <div className="bg-white shadow-lg sticky top-0 z-10">
+        <div className="max-w-6xl mx-auto px-6 py-6">
+          <h1 className="text-3xl font-bold text-gray-800 mb-6">Legal Awareness & Cyber Protection</h1>
+          
+          {/* Student Info Section */}
+          <div className="bg-gradient-to-r from-indigo-50 to-blue-50 rounded-lg p-6 mb-6 border-2 border-indigo-200">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Last Name</label>
+                <input
+                  type="text"
+                  value={formData.lastName}
+                  onChange={(e) => setFormData({...formData, lastName: e.target.value})}
+                  className="w-full px-4 py-3 border-2 border-indigo-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent font-semibold text-lg"
+                  placeholder="Enter your last name"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">First Name</label>
+                <input
+                  type="text"
+                  value={formData.firstName}
+                  onChange={(e) => setFormData({...formData, firstName: e.target.value})}
+                  className="w-full px-4 py-3 border-2 border-indigo-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent font-semibold text-lg"
+                  placeholder="Enter your first name"
+                />
+              </div>
+            </div>
+            
+            {(formData.firstName || formData.lastName) && (
+              <div className="bg-white rounded-lg p-4 border-2 border-indigo-300">
+                <p className="text-2xl font-bold text-indigo-900">
+                  {formData.firstName} {formData.lastName}
+                </p>
+                <p className="text-sm text-gray-600 mt-1">Date: {new Date().toLocaleDateString()}</p>
+              </div>
+            )}
+          </div>
+
+          {/* Progress Indicators */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {/* Time Progress */}
+            <div className="bg-blue-50 rounded-lg p-4">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <Clock className={`w-5 h-5 ${isActive ? 'text-blue-600' : 'text-gray-400'}`} />
+                  <span className="font-semibold text-gray-700">Active Time</span>
+                </div>
+                <span className="text-lg font-bold text-blue-600">
+                  {formatTime(timeSpent)} / {formatTime(REQUIRED_TIME)}
+                </span>
+              </div>
+              <div className="w-full bg-gray-200 rounded-full h-3">
+                <div 
+                  className="bg-blue-600 h-3 rounded-full transition-all duration-300"
+                  style={{ width: `${timeProgress}%` }}
+                />
+              </div>
+              {!isActive && <p className="text-xs text-gray-500 mt-1">⚠️ Paused</p>}
+            </div>
+
+            {/* Section Progress */}
+            <div className="bg-green-50 rounded-lg p-4">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <BookOpen className="w-5 h-5 text-green-600" />
+                  <span className="font-semibold text-gray-700">Sections</span>
+                </div>
+                <span className="text-lg font-bold text-green-600">
+                  {completedSections.size} / {sections.length}
+                </span>
+              </div>
+              <div className="w-full bg-gray-200 rounded-full h-3">
+                <div 
+                  className="bg-green-600 h-3 rounded-full transition-all duration-300"
+                  style={{ width: `${progress}%` }}
+                />
+              </div>
+            </div>
+
+            {/* Score Progress */}
+            <div className="bg-yellow-50 rounded-lg p-4">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <Award className="w-5 h-5 text-yellow-600" />
+                  <span className="font-semibold text-gray-700">Score</span>
+                </div>
+                <span className="text-lg font-bold text-yellow-600">
+                  {currentScore} / 60
+                </span>
+              </div>
+              <div className="w-full bg-gray-200 rounded-full h-3">
+                <div 
+                  className="bg-yellow-600 h-3 rounded-full transition-all duration-300"
+                  style={{ width: `${(currentScore / 60) * 100}%` }}
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Main Content */}
+      <div className="max-w-6xl mx-auto px-6 py-8" ref={contentRef}>
+        {/* Sections */}
+        <div className="space-y-4 mb-8">
+          {sections.map((section, index) => {
+            const sectionPoints = section.checkpoints.reduce((sum, cp) => sum + cp.points, 0);
+            return (
+              <div key={index} className="bg-white rounded-xl shadow-md overflow-hidden">
+                <button
+                  onClick={() => handleSectionClick(index)}
+                  className="w-full px-6 py-4 flex items-center justify-between hover:bg-gray-50 transition-colors"
+                >
+                  <div className="flex items-center gap-4">
+                    {completedSections.has(index) ? (
+                      <CheckCircle className="w-6 h-6 text-green-500 flex-shrink-0" />
+                    ) : (
+                      <Circle className="w-6 h-6 text-gray-300 flex-shrink-0" />
+                    )}
+                    <div className="flex items-center gap-3">
+                      {section.icon}
+                      <h3 className="text-xl font-bold text-gray-800">{section.title}</h3>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <span className="text-sm font-semibold text-yellow-600 bg-yellow-50 px-3 py-1 rounded-full">
+                      {section.checkpoints.length} questions • {sectionPoints} pts
+                    </span>
+                    <span className="text-gray-400">{activeSection === index ? '▼' : '▶'}</span>
+                  </div>
+                </button>
+
+                {activeSection === index && (
+                  <div className="px-6 pb-6 space-y-6">
+                    <div className="prose prose-lg max-w-none">
+                      <p className="whitespace-pre-line text-gray-700 leading-relaxed">{section.content}</p>
+                    </div>
+
+                    {section.case && (
+                      <div className="bg-amber-50 border-l-4 border-amber-500 rounded-lg p-6">
+                        <h4 className="font-bold text-lg text-amber-900 mb-3 flex items-center gap-2">
+                          <Scale className="w-5 h-5" />
+                          Legal Case Example
+                        </h4>
+                        <div className="space-y-2 text-gray-800">
+                          <p><strong>Case:</strong> {section.case.title}</p>
+                          <p><strong>Cause:</strong> {section.case.cause}</p>
+                          <p><strong>Verdict/Outcome:</strong> {section.case.verdict}</p>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Checkpoint Questions */}
+                    <div className="space-y-4">
+                      {section.checkpoints.map((checkpoint, checkpointIndex) => {
+                        const key = `${section.id}-${checkpointIndex}`;
+                        return (
+                          <div key={checkpointIndex} className="bg-purple-50 rounded-lg p-6 border-2 border-purple-200">
+                            <div className="flex items-center justify-between mb-3">
+                              <h4 className="font-bold text-lg text-purple-900 flex items-center gap-2">
+                                <CheckCircle className="w-5 h-5" />
+                                Checkpoint {checkpointIndex + 1}
+                              </h4>
+                              <span className="bg-purple-600 text-white px-3 py-1 rounded-full text-sm font-bold">
+                                {checkpoint.points} pts
+                              </span>
+                            </div>
+                            <p className="text-gray-800 font-medium mb-4">{checkpoint.question}</p>
+                            <div className="space-y-2">
+                              {checkpoint.options.map((option, optIndex) => {
+                                const isSelected = checkpointAnswers[key] === optIndex;
+                                const isCorrect = optIndex === checkpoint.correctAnswer;
+                                const showFeedback = showCheckpointFeedback[key];
+                                
+                                let buttonClass = 'bg-white hover:bg-purple-100 text-gray-700 border-2 border-gray-200';
+                                if (isSelected && showFeedback) {
+                                  if (isCorrect) {
+                                    buttonClass = 'bg-green-500 text-white border-2 border-green-600';
+                                  } else {
+                                    buttonClass = 'bg-red-500 text-white border-2 border-red-600';
+                                  }
+                                } else if (showFeedback && isCorrect) {
+                                  buttonClass = 'bg-green-100 text-green-800 border-2 border-green-300';
+                                }
+
+                                return (
+                                  <button
+                                    key={optIndex}
+                                    onClick={() => handleCheckpointAnswer(section.id, checkpointIndex, optIndex)}
+                                    disabled={showCheckpointFeedback[key]}
+                                    className={`w-full text-left px-4 py-3 rounded-lg transition-colors ${buttonClass} ${
+                                      showCheckpointFeedback[key] ? 'cursor-not-allowed' : 'cursor-pointer'
+                                    }`}
+                                  >
+                                    <div className="flex items-center justify-between">
+                                      <span>{option}</span>
+                                      {showFeedback && isSelected && (
+                                        <span className="ml-2 text-xl">
+                                          {isCorrect ? '✓' : '✗'}
+                                        </span>
+                                      )}
+                                    </div>
+                                  </button>
+                                );
+                              })}
+                            </div>
+                            {showCheckpointFeedback[key] && (
+                              <div className={`mt-4 p-3 rounded-lg ${
+                                checkpointAnswers[key] === checkpoint.correctAnswer
+                                  ? 'bg-green-50 text-green-800'
+                                  : 'bg-red-50 text-red-800'
+                              }`}>
+                                {checkpointAnswers[key] === checkpoint.correctAnswer
+                                  ? `✓ Correct! You earned ${checkpoint.points} points.`
+                                  : `✗ Incorrect. The correct answer has been highlighted.`
+                                }
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Reflection Essay Section */}
+        <div className="bg-white rounded-xl shadow-lg p-8">
+          <h2 className="text-2xl font-bold text-gray-800 mb-4 flex items-center gap-3">
+            <BookOpen className="w-7 h-7 text-indigo-600" />
+            Final Reflection Essay
+          </h2>
+          
+          <div className="bg-indigo-50 border-l-4 border-indigo-500 rounded-lg p-6 mb-6">
+            <p className="text-gray-800 font-medium mb-2">
+              <strong>Instructions:</strong>
+            </p>
+            <p className="text-gray-700">
+              In at least 10 sentences, explain how the principles from the discussed cases apply to the main topics. 
+              Provide your personal interpretation while keeping legal accuracy. This reflection demonstrates your 
+              understanding of the material covered in this training.
+            </p>
+          </div>
+
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">
+              Your Reflection (Minimum 10 sentences) *
+            </label>
+            <textarea
+              value={formData.reflection}
+              onChange={(e) => setFormData({...formData, reflection: e.target.value})}
+              rows={15}
+              className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+              placeholder="Write your reflection here..."
+            />
+            <div className="flex justify-between items-center mt-3">
+              <p className="text-sm text-gray-600">
+                Sentences: <span className={`font-bold text-lg ${sentenceCount >= 10 ? 'text-green-600' : 'text-red-600'}`}>
+                  {sentenceCount} / 10
+                </span>
+                {sentenceCount >= 10 && <span className="ml-2 text-green-600">✓ Complete</span>}
+                {sentenceCount < 10 && <span className="ml-2 text-red-600">⚠ {10 - sentenceCount} more needed</span>}
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-8 bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg p-6 border-2 border-green-200">
+            <div className="flex items-center gap-4">
+              <CheckCircle className="w-12 h-12 text-green-600 flex-shrink-0" />
+              <div>
+                <h3 className="text-lg font-bold text-gray-800 mb-2">Ready to Screenshot!</h3>
+                <p className="text-gray-700">
+                  Once you've completed all requirements, take a screenshot of the top of this page showing your name, 
+                  sections completed, time spent, and total score. No submission button needed - just capture your results!
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Completion Status */}
+          <div className="mt-6 space-y-3">
+            <h3 className="font-semibold text-gray-800 mb-3">Completion Checklist:</h3>
+            
+            <div className={`flex items-center gap-3 p-3 rounded-lg ${
+              formData.firstName && formData.lastName ? 'bg-green-50' : 'bg-gray-50'
+            }`}>
+              {formData.firstName && formData.lastName ? (
+                <CheckCircle className="w-5 h-5 text-green-600" />
+              ) : (
+                <Circle className="w-5 h-5 text-gray-400" />
+              )}
+              <span className={formData.firstName && formData.lastName ? 'text-green-800 font-medium' : 'text-gray-600'}>
+                Name entered
+              </span>
+            </div>
+
+            <div className={`flex items-center gap-3 p-3 rounded-lg ${
+              timeSpent >= REQUIRED_TIME ? 'bg-green-50' : 'bg-gray-50'
+            }`}>
+              {timeSpent >= REQUIRED_TIME ? (
+                <CheckCircle className="w-5 h-5 text-green-600" />
+              ) : (
+                <Circle className="w-5 h-5 text-gray-400" />
+              )}
+              <span className={timeSpent >= REQUIRED_TIME ? 'text-green-800 font-medium' : 'text-gray-600'}>
+                Minimum reading time completed ({formatTime(timeSpent)} / {formatTime(REQUIRED_TIME)})
+              </span>
+            </div>
+
+            <div className={`flex items-center gap-3 p-3 rounded-lg ${
+              completedSections.size === sections.length ? 'bg-green-50' : 'bg-gray-50'
+            }`}>
+              {completedSections.size === sections.length ? (
+                <CheckCircle className="w-5 h-5 text-green-600" />
+              ) : (
+                <Circle className="w-5 h-5 text-gray-400" />
+              )}
+              <span className={completedSections.size === sections.length ? 'text-green-800 font-medium' : 'text-gray-600'}>
+                All sections opened ({completedSections.size} / {sections.length})
+              </span>
+            </div>
+
+            <div className={`flex items-center gap-3 p-3 rounded-lg ${
+              sentenceCount >= 10 ? 'bg-green-50' : 'bg-gray-50'
+            }`}>
+              {sentenceCount >= 10 ? (
+                <CheckCircle className="w-5 h-5 text-green-600" />
+              ) : (
+                <Circle className="w-5 h-5 text-gray-400" />
+              )}
+              <span className={sentenceCount >= 10 ? 'text-green-800 font-medium' : 'text-gray-600'}>
+                Reflection essay completed ({sentenceCount} / 10 sentences)
+              </span>
+            </div>
+
+            <div className={`flex items-center gap-3 p-3 rounded-lg ${
+              currentScore > 0 ? 'bg-green-50' : 'bg-gray-50'
+            }`}>
+              {currentScore > 0 ? (
+                <CheckCircle className="w-5 h-5 text-green-600" />
+              ) : (
+                <Circle className="w-5 h-5 text-gray-400" />
+              )}
+              <span className={currentScore > 0 ? 'text-green-800 font-medium' : 'text-gray-600'}>
+                Checkpoint questions answered (Score: {currentScore} / 60 points)
+              </span>
+            </div>
+          </div>
+
+          {(formData.firstName && formData.lastName && timeSpent >= REQUIRED_TIME && 
+            completedSections.size === sections.length && sentenceCount >= 10) && (
+            <div className="mt-6 bg-gradient-to-r from-yellow-50 to-amber-50 rounded-lg p-6 border-2 border-yellow-300">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-2xl font-bold text-amber-800 mb-1">🎉 All Requirements Complete!</p>
+                  <p className="text-gray-700">
+                    Scroll to the top and take a screenshot showing your name, progress, and score.
+                  </p>
+                </div>
+                <Award className="w-16 h-16 text-yellow-500" />
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default LegalLearningPlatform;
